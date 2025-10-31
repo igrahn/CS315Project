@@ -1,4 +1,4 @@
-def clamp01(x);
+def _clamp01(x):
 
 def read_ppm(path);
 
