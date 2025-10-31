@@ -33,6 +33,4 @@ def main():
         new_width = int(input("Enter new width: "))
         new_height = int(input("Enter new height: "))
         resizeImage(new_width, new_height, image_path)
-
-if __name__ == "__main__":
-    main()
+main()
