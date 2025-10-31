@@ -1,7 +1,7 @@
 # CS315Project
 
 
-## Overview
+# Overview
 This project demonstrates basic **image processing algorithms** implemented from scratch using python.
 It works with `.ppm` (Portable PixMap, P3) images, storing pixels as text RGB values.  
 
