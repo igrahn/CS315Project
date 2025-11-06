@@ -4,18 +4,14 @@ import argparse
 from src.ppm_io import read_ppm, write_ppm, rgb_to_gray, gray_to_rgb
 from src.filters import box_blur, sharpen, sobel_edges, otsu_threshold, apply_threshold
 
-def parse_args():
-  p = argparse.ArgumentParser(description=""
-
 def main():
-
-    parser = argparse.ArgumentParser(description="Basic Image Processing Tool (blur, sharpen, sobel, otsu)")
-    parser.add_argument("--op", required=True)
-    parser.add_argument("--in", dest="inp", required=True)
-    parser.add_argument("--out", dest="outp", required=True)
-    parser.add_argument("--k", type=int, default=3)
+  parser = argparse.ArgumentParser(description="Basic Image Processing Tool (blur, sharpen, sobel, otsu)")
+  parser.add_argument("--op", required=True)
+  parser.add_argument("--in", dest="inp", required=True)
+  parser.add_argument("--out", dest="outp", required=True)
+  parser.add_argument("--k", type=int, default=3)
   
-    args = parser.parse_args()
+  args = parser.parse_args()
 
   img = read_ppm(args.inp)
 
@@ -26,13 +22,26 @@ def main():
     out = sharpen(img)
     
   elif args.op == "sobel":
-    #
-    #
-    #
+
+    gray = rgb_to_gray(img)
+    edges = sobel_edges(gray)
+    out = gray_to_rgb(edges)
+    
   elif args.op == "otsu":
-    #
-    #
-    #
+    
+    gray = rgb_to_gray(img)
+    t = otsu_threshold(gray)
+    binary = apply_threshold(gray, t)
+    out = gray_to_rgb(binary)
+    print(f"Otsu threshold value: {t:.3f}")
+    
   else:
-    raise ValueError("error!")
+    print("Invalid! Please choose from one of the 4 options.")
+
+
+  write_ppm(args.outp, out)
+  print(f"Saved output as {args.outp}")
+    
+if __name__ == "__main__":
+    main()
  
