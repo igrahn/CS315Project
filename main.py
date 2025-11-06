@@ -15,7 +15,7 @@ def main():
   
   args = parser.parse_args()
 
-  img = read_ppm(args.inp)
+  img = load_image(args.inp)
 
   if args.op == "blur":
     k = 5 if args.k == 5 else 3
@@ -42,7 +42,7 @@ def main():
     print("Invalid! Please choose from one of the 4 options.")
 
 
-  write_ppm(args.outp, out)
+  save_image(args.outp, out)
   print(f"Saved output as {args.outp}")
     
 if __name__ == "__main__":
