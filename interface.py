@@ -1,65 +1,152 @@
-import tkinter as tk
-from tkinter import filedialog
-from PIL import Image, ImageOps, ImageEnhance
-import os
+#---------------------------------------------------------#
+# File: interface.py
+# Author: Ian Grahn and Matthew Barbarisi
+# Purpose: File for user interaction and image processing
+# Version: 1.9 Nov 12 2025
+# Resources: Me and Matthew wroe the code, ChatGPT helped with compilation erros, and checking for
+# redundant or uselss parts of the code. It also helepd greatly with syntax and compilation errors.
+# OpenAI (2025) *ChatGPT* (Version 5) (Generative AI Model).
+# https://www.openai.com/chatgpt/
+#---------------------------------------------------------#
 
-def upload_image():
-    # Let user select an image file
-    file_path = filedialog.askopenfilename(
-        title="Select an Image",
-        filetypes=[("Image Files", "*.png *.jpg *.jpeg *.bmp *.ppm *.gif")]
-    )
-    if not file_path:
-        print("No file selected.")
+import os
+import tkinter as tk
+from tkinter import filedialog, simpledialog, messagebox
+
+from src.io_image import load_image, save_image
+from src.filters import (
+    box_blur, sharpen, adjust_brightness, invert,
+    rgb_to_gray, gray_to_rgb, otsu_threshold, apply_threshold,
+)
+
+FILETYPES = [
+    ("Image files", "*.png *.jpg *.jpeg *.bmp *.gif *.tiff"),
+    ("All files", "*.*"),
+]
+
+def ask_op(root):
+    """
+    GUI-only operation chooser. Returns:
+      "blur" | "sharpen" | "bright" | "invert" | "otsu" | "done" | None (cancel)
+    """
+    ops = [
+        "1) Blur",
+        "2) Sharpen",
+        "3) Brightness",
+        "4) Invert",
+        "5) Otsu (B/W)",
+        "6) Finish & Save",
+    ]
+    choice = simpledialog.askstring("Operation", "\n".join(ops), parent=root)
+    if not choice:
+        return None
+    return {
+        "1": "blur",
+        "2": "sharpen",
+        "3": "bright",
+        "4": "invert",
+        "5": "otsu",
+        "6": "done",
+    }.get(choice.strip(), "invalid")
+
+def main():
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        # keep dialogs on top 
+        root.attributes("-topmost", True)
+        root.update()
+    except Exception:
+        pass
+
+    # Pick input
+    in_path = filedialog.askopenfilename(title="Select an image", filetypes=FILETYPES, parent=root)
+    if not in_path:
+        messagebox.showinfo("No file", "No file selected. Exiting.", parent=root)
+        return
+    if not os.path.exists(in_path):
+        messagebox.showerror("Error", f"File not found:\n{in_path}", parent=root)
         return
 
-    # Load and display image info
-    img = Image.open(file_path)
-    print(f"Loaded image: {file_path}")
-    print(f"Format: {img.format}, Size: {img.size}, Mode: {img.mode}")
+    try:
+        img = load_image(in_path)
+    except Exception as e:
+        messagebox.showerror("Error", f"Could not load image:\n{e}", parent=root)
+        return
 
-    # Convert to PPM
-    ppm_path = os.path.splitext(file_path)[0] + ".ppm"
-    img.save(ppm_path)
-    print(f"Image converted and saved as PPM: {ppm_path}")
+    # Loop: apply edits until user chooses finish and save
+    while True:
+        op = ask_op(root)
+        if op is None:
+            # user closed the dialog, then confirm finish
+            if messagebox.askyesno("Finish?", "No operation selected.\nWould you like to finish and save now?", parent=root):
+                break
+            else:
+                continue
+        if op == "done":
+            break
+        if op == "invalid":
+            messagebox.showwarning("Invalid", "Please enter a number from 1–6.", parent=root)
+            continue
 
-    # Ask user which transformation to apply
-    print("\nChoose an operation:")
-    print("1. Convert to grayscale")
-    print("2. Invert colors")
-    print("3. Increase brightness")
-    print("4. Decrease brightness")
-    print("5. Rotate 90°")
-    print("6. Flip horizontally")
-    choice = input("Enter number (1–6): ")
+        try:
+            if op == "blur":
+                k_str = simpledialog.askstring("Blur kernel", "Kernel size (3 or 5):",
+                                               initialvalue="3", parent=root)
+                try:
+                    k = int(k_str) if k_str else 3
+                except Exception:
+                    k = 3
+                k = 5 if k == 5 else 3
+                img = box_blur(img, k=k)
 
-    # Perform the selected operation
-    if choice == "1":
-        img = ImageOps.grayscale(img)
-    elif choice == "2":
-        img = ImageOps.invert(img.convert("RGB"))
-    elif choice == "3":
-        enhancer = ImageEnhance.Brightness(img)
-        img = enhancer.enhance(1.5)
-    elif choice == "4":
-        enhancer = ImageEnhance.Brightness(img)
-        img = enhancer.enhance(0.6)
-    elif choice == "5":
-        img = img.rotate(90, expand=True)
-    elif choice == "6":
-        img = ImageOps.mirror(img)
-    else:
-        print("Invalid choice. No operation applied.")
+            elif op == "sharpen":
+                img = sharpen(img)
 
-    # Save altered image as PPM
-    altered_path = os.path.splitext(file_path)[0] + "_altered.ppm"
-    img.save(altered_path)
-    print(f"Altered image saved as: {altered_path}")
+            elif op == "bright":
+                delta_str = simpledialog.askstring("Brightness",
+                                                   "Change amount (e.g. 0.2 or -0.2):",
+                                                   initialvalue="0.15", parent=root)
+                try:
+                    delta = float(delta_str) if delta_str else 0.15
+                except Exception:
+                    delta = 0.15
+                img = adjust_brightness(img, delta=delta)
 
-    # Optional: show image
-    img.show()
+            elif op == "invert":
+                root.update_idletasks()
+                img = invert(img)
+
+            elif op == "otsu":
+                gray = rgb_to_gray(img)
+                t = otsu_threshold(gray)
+                bw = apply_threshold(gray, t)
+                img = gray_to_rgb(bw)
+                messagebox.showinfo("Otsu threshold", f"Threshold value: {t:.3f}", parent=root)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred while applying the filter:\n{e}", parent=root)
+            continue
+
+    # Save final
+    base, _ = os.path.splitext(in_path)
+    suggested = base + "_result.jpg"
+    out_path = filedialog.asksaveasfilename(
+        title="Save final image as...",
+        defaultextension=".jpg",
+        initialfile=os.path.basename(suggested),
+        filetypes=FILETYPES,
+        parent=root,
+    )
+    if not out_path:
+        messagebox.showinfo("Canceled", "Save canceled.", parent=root)
+        return
+
+    try:
+        save_image(out_path, img)
+        messagebox.showinfo("Done", f"All edits applied.\nSaved:\n{out_path}", parent=root)
+    except Exception as e:
+        messagebox.showerror("Error", f"Could not save image:\n{e}", parent=root)
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    root.withdraw()  # hide main window
-    upload_image()
+    main()
